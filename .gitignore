@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# Data & indices (we don’t commit harvested data or indices)
+data/
+*.sqlite
+*.jsonl
+*.faiss
+*.pkl
+*.bin
+*.npy
+
+# Streamlit/other caches
+.streamlit/
+.frontend_cache/
