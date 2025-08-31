@@ -1,2 +1,3 @@
 .env
-/pipelines/fill_db
+/pipelines/fill_db.py
+/pipelines/vector_db.py

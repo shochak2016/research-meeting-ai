@@ -19,5 +19,15 @@ TOOL = "research-ai"                      # per NCBI guidance
 EMAIL = "shochak2016@gmail.com"             # per NCBI guidance
 
 
+def delete_entries(sb, table: str):
+    pass
+
+
+def main():
+    pass
+
+if __name__ == "__main__":
+    main()
+
 
 

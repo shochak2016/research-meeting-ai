@@ -11,13 +11,14 @@ from openai import OpenAI
 
 from sentence_transformers import SentenceTransformer
 
+import xml.etree.ElementTree as ET
 
 '''
 document converts JSON files to vector embeddings. JSON files are used to store study contents, 
 and through RAG pipeline, need to be converted into vector embeddings than can be fed to LLM, in this case ChatGPT
 '''
 
-class JSON_to_vec():
+class Embedder():
     def __init__(self, obj, model_id: str = "nomic-ai/nomic-embed-text-v2-moe", fields: Sequence[str] = ("title", "abstract", "body", "text", "content", "link"), overlap: int = 40):
         self.model = SentenceTransformer(model_id, trust_remote_code=True) #HF wrapper for vector embedding model
         #self.tokenizer = AutoTokenizer.from_pretrained("nomic-ai/nomic-embed-text-v2-moe")
@@ -28,8 +29,13 @@ class JSON_to_vec():
         self.obj = obj #JSON file from DB is dumped as a dict automatically
         
 
-    def json_to_str(self) -> str: #method converts json to string first
+    def db_to_str(self) -> str: #method converts DB entry to string first
         '''
+        Since DB handles JSON conversion and dumps as a python dict through package, 
+        conversion below is redundant
+
+        ######################
+
         if self.p.suffix.lower() == ".json": #make sure file is json
             data = orjson.loads(self.p.read_bytes()) #reads by bytes because data is stored as jsonb
             if isinstance(data, dict):
@@ -59,6 +65,15 @@ class JSON_to_vec():
             raise ValueError(f"No text found for fields {self.fields}")
         return text
     
+
+
+    def xml_to_text(xml_str: str) -> str: #XML might be easier than JSON since pubmed API is buns
+        root = ET.fromstring(xml_str)
+        t = "".join((root.find(".//Article/ArticleTitle") or ET.Element("x")).itertext()).strip()
+        parts = ["".join(n.itertext()).strip() for n in root.findall(".//Article/Abstract/AbstractText")]
+        abstract = "\n".join(p for p in parts if p)
+        return (t + ("\n\n" if t and abstract else "") + abstract).strip() or xml_str
+        #vibe coded
 
     def str_to_vector(self, text: str, is_query: bool = False) -> np.ndarray:
         if is_query: #if string is a user input
