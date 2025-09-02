@@ -13,9 +13,9 @@ from sentence_transformers import SentenceTransformer
 HASH = os.environ.get("RAI_HASH")
 
 BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
-PMED_API_KEY = os.getenv("7efdbfda18b23dc38b740fee2393bc915c09")  
-TOOL = "research-ai"                      # per NCBI guidance
-EMAIL = "shochak2016@gmail.com"             # per NCBI guidance
+PMED_API_KEY = "PMED_API_KEY" 
+TOOL = "project"                      # per NCBI guidance
+EMAIL = "youremail@gmail.com"             # per NCBI guidance
 
 CUR_MONTH = "08"
 MONTHS = {m:i for i,m in enumerate(["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],1)}
@@ -213,7 +213,6 @@ def main():
 
     namespace = os.environ.get("PINECONE_NAMESPACE", "pubmed")
     push_to_pinecone(idx, namespace)
-
 
 
 if __name__ == "__main__":

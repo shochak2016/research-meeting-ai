@@ -179,11 +179,9 @@ def add_past_month(sb, table: str, api_key: str = PMED_API_KEY, retmax: int = 40
 def main():
     password()
     sb = create_client(os.environ["SUPABASE_URL"], os.environ[HASH])
-    tool  = os.environ.get(BASE, "my_script")
-    email = os.environ.get(EMAIL, "me@example.com")
     api_key = os.environ.get(PMED_API_KEY)
     table = "pubmed_articles"
-    add_past_month(sb, table, tool, email, api_key, retmax=400, chunk=200, require_abstract=True)
+    add_past_month(sb, table, api_key, retmax=400, chunk=200, require_abstract=True)
 
 if __name__ == "__main__":
     main()
