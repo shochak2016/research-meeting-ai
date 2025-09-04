@@ -6,7 +6,7 @@ from langchain_core.output_parsers import JsonOutputParser
 
 
 
-from pinecone import Pinecone, ServerlessSpec
+from pinecone import Pinecone
 
 from operations.embedding import Embedder
 
