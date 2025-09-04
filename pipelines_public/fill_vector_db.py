@@ -1,5 +1,4 @@
 import os, time, datetime as dt, math, requests
-from urllib.parse import urlencode
 import os, sys, getpass, bcrypt
 from datetime import date, timedelta
 from pinecone import Pinecone, ServerlessSpec

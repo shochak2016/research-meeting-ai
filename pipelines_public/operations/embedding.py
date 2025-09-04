@@ -17,7 +17,7 @@ and through RAG pipeline, need to be converted into vector embeddings than can b
 '''
 
 class Embedder():
-    def __init__(self, obj, model_id: str = "nomic-ai/nomic-embed-text-v2-moe", fields: Sequence[str] = ("title","abstract","pub_date"), overlap: int = 40):
+    def __init__(self,obj, model_id: str = "nomic-ai/nomic-embed-text-v2-moe", fields: Sequence[str] = ("title","abstract","pub_date"), overlap: int = 40):
         self.model = SentenceTransformer(model_id, trust_remote_code=True) #HF wrapper for vector embedding model
         #self.tokenizer = AutoTokenizer.from_pretrained("nomic-ai/nomic-embed-text-v2-moe")
         self.out_dim = self.model.get_sentence_embedding_dimension() #dimension for output vectors, based on model
