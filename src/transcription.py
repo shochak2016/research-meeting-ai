@@ -1,14 +1,13 @@
-# pip install torch --index-url https://download.pytorch.org/whl/cpu
-# pip install nemo_toolkit[asr] soundfile librosa
+# pip install faster-whisper soundfile librosa
 
-from nemo.collections.asr.models import EncDecMultiTaskModel
+from faster_whisper import WhisperModel
 import torch
 import queue, sys, time
 import numpy as np
 import sounddevice as sd
 
 class Transcription():
-    def __init__(self, model_id="nvidia/canary-180m-flash", beam_size=1, len_window = 8.0, freq = 16000, fps = 0.02, refresh_rate=0.5, queue_size: int = 50):
+    def __init__(self, beam_size=1, len_window = 8.0, freq = 16000, fps = 0.02, refresh_rate=0.5, queue_size: int = 50):
         
         if torch.cuda.is_available():
             self.device = "cuda"
@@ -21,11 +20,9 @@ class Transcription():
         self.refresh_rate = refresh_rate
         self.beam_size = beam_size #increase if gpu is enabled and if ok with rewrites
         
-        # Initialize model first
-        self.model = EncDecMultiTaskModel.from_pretrained(str(model_id)).to(self.device).eval()
-        self.cfg = self.model.cfg.decoding
-        self.cfg.beam.beam_size = self.beam_size
-        self.model.change_decoding_strategy(self.cfg)
+        # Initialize faster-whisper model
+        compute_type = "float16" if self.device == "cuda" else "int8"
+        self.model = WhisperModel("base", device=self.device, compute_type=compute_type)
 
         self.queue = queue.Queue()
         self.buffer = np.zeros(0, dtype=float)
@@ -48,20 +45,20 @@ class Transcription():
     
     def _transcribe_text(self, audio_buffer):
         """Transcribe audio buffer using the model"""
-        # Convert numpy array to torch tensor
-        audio_tensor = torch.from_numpy(audio_buffer).float()
-        if audio_tensor.dim() == 1:
-            audio_tensor = audio_tensor.unsqueeze(0)
+        # Faster-whisper expects normalized float32 audio
+        audio_buffer = audio_buffer.astype(np.float32)
         
-        # Move to device and transcribe
-        audio_tensor = audio_tensor.to(self.device)
-        with torch.no_grad():
-            transcription = self.model.transcribe(audio_tensor)
+        # Transcribe with faster-whisper
+        segments, info = self.model.transcribe(
+            audio_buffer,
+            beam_size=self.beam_size,
+            language="en",
+            vad_filter=True
+        )
         
-        # Return the transcribed text
-        if isinstance(transcription, list) and len(transcription) > 0:
-            return transcription[0]
-        return str(transcription)
+        # Collect all segments into text
+        text = " ".join([segment.text for segment in segments])
+        return text.strip()
     
     def update_buffer(self, audio_frame):
         """Add audio frame to buffer and maintain max window size"""
