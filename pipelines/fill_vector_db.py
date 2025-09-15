@@ -5,8 +5,6 @@ from datetime import date, timedelta
 from pinecone import Pinecone, ServerlessSpec
 
 from lxml import etree
-from dotenv import load_dotenv
-load_dotenv()
 
 from operations.embedding import Embedder
 
@@ -15,18 +13,22 @@ from sentence_transformers import SentenceTransformer
 HASH = os.environ.get("RAI_HASH")
 
 BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
-PMED_API_KEY = "PMED_API_KEY" 
-TOOL = "project"                      # per NCBI guidance
-EMAIL = "youremail@gmail.com"             # per NCBI guidance
+PMED_API_KEY = os.getenv("PMED_API_KEY")  
+TOOL = "research-ai"                      # per NCBI guidance
+EMAIL = "shochak2016@gmail.com"             # per NCBI guidance
 
 CUR_MONTH = "08"
 MONTHS = {m:i for i,m in enumerate(["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],1)}
 
-PINECONE_KEY = "INSERT PINECONE KEY HERE"
+PINECONE_KEY = "PINECONE_API_KEY"
 
 pc = Pinecone(api_key=PINECONE_KEY)
 
-'''Function is used to make user input password to run this function'''
+'''
+Function is used to make user input password to run this function.
+OPTIONAL: This function provides password protection when running scripts from terminal.
+For Streamlit or web apps, you may want to use different authentication methods.
+'''
 def password():
     if not HASH:
         sys.exit("Missing SCRIPT_PASS_HASH env var.")
@@ -169,7 +171,7 @@ def push_to_pinecone(idx, namespace: str, api_key: str = PMED_API_KEY, retmax: i
     while retstart < count:
         try:
             for row in fetch_lines(webenv, qk, retstart, retmax, api_key):
-                content = row.get("content") or {}
+                content = row.get("contents") or {}
                 if not content.get("abstract"):
                     continue
                 obj = {
@@ -200,10 +202,10 @@ def push_to_pinecone(idx, namespace: str, api_key: str = PMED_API_KEY, retmax: i
 ##################
 
 def main():
-    password()
-    dim = SentenceTransformer(model_id="nomic-ai/nomic-embed-text-v2-moe", trust_remote_code=True).get_sentence_embedding_dimension()
+    # password()  # Commented out for Streamlit usage - uncomment if running from terminal with password protection
+    dim = SentenceTransformer(model_name_or_path="nomic-ai/nomic-embed-text-v2-moe", trust_remote_code=True).get_sentence_embedding_dimension()
     
-    pc = Pinecone(api_key=os.environ[PINECONE_KEY])
+    pc = Pinecone(api_key=os.environ.get(PINECONE_KEY))
     index_name = os.environ.get("DB_NAME", "pubmed") #incomplete
     cloud = os.environ.get("PINECONE_CLOUD", "aws") #incomplete
     region = os.environ.get("PINECONE_REGION", "us-west-2") #incomplete
@@ -215,6 +217,7 @@ def main():
 
     namespace = os.environ.get("PINECONE_NAMESPACE", "pubmed")
     push_to_pinecone(idx, namespace)
+
 
 
 if __name__ == "__main__":

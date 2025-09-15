@@ -6,8 +6,12 @@ import torch
 import queue, sys, time
 import numpy as np
 import sounddevice as sd
+from dotenv import load_dotenv
+import frame
 
-class Transcription():
+load_dotenv()
+
+class TranscriptionModule():
     def __init__(self, model_id="nvidia/canary-180m-flash", beam_size=1, len_window = 8.0, freq = 16000, fps = 0.02, refresh_rate=0.5, queue_size: int = 50):
         
         if torch.cuda.is_available():
@@ -35,6 +39,9 @@ class Transcription():
         self.last_emit: float = time.time()
         self.prev_text: str = ""
 
+    def convert(self, input: av.AudioFrame) -> np.ndarray:
+        return frame.to_ndarray(input)
+
     def audio_processing(self, input, status):
         if status:
             print(status)
@@ -45,6 +52,8 @@ class Transcription():
         if cur[:len(prev)] == prev:
             return cur[len(prev):], cur
         return "\n" + cur + "\n", cur #cur, prev = diff_suffix(prev, cur)
+
+
     
     def _transcribe_text(self, audio_buffer):
         """Transcribe audio buffer using the model"""

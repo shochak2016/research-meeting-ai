@@ -1,3 +1,34 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
 .env
-misc
-pipelines
+
+# Data & indices (we don't commit harvested data or indices)
+data/
+*.sqlite
+*.jsonl
+*.faiss
+*.pkl
+*.bin
+*.npy
+
+# Streamlit/other caches
+.streamlit/
+.frontend_cache/
+
+# Additional frontend files
+node_modules/
+.next/
+dist/
+build/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
