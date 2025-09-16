@@ -32,3 +32,9 @@ build/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Additional entries from main
+misc
+pipelines
+todo.txt
+venv

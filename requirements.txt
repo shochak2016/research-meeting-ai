@@ -1,7 +1,7 @@
 # Core dependencies
 numpy>=1.21.0
 requests>=2.28.0
-python-dotenv>=0.19.0
+python-dotenv>=1.0.0
 
 # Audio and transcription
 torch>=2.0.0
@@ -17,8 +17,13 @@ langchain-core>=0.1.0
 openai>=1.0.0
 
 # Vector database and embeddings
-pinecone-client>=3.0.0
+pinecone>=2.0.0
 sentence-transformers>=2.2.0
+einops>=0.7.0  # Required for nomic embedding model
+transformers>=4.30.0  # Required for embedding models
+tokenizers>=0.13.0  # Required for fast tokenization
+safetensors>=0.3.1  # For safe model loading
+huggingface-hub>=0.16.0  # For downloading models
 
 # Database
 supabase>=2.0.0
@@ -32,10 +37,6 @@ tqdm>=4.65.0
 
 # Security
 bcrypt>=4.0.0
-
-# Standard library extensions
-pathlib
-typing
 
 # Web UI
 streamlit>=1.28.0

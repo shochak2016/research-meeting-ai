@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from streamlit_webrtc import webrtc_streamer, WebRtcMode, AudioProcessorBase
 import av
 
-load_dotenv()
+# Load environment variables from .env fileload_dotenv()
 
 # Add parent directory to path so we can import from pipelines
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
