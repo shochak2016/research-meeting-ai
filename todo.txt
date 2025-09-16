@@ -1,0 +1,5 @@
+TODO:
+-FAISS
+-Enable google search or utilize MCP servers that could be useful to customers
+-Fix daily sync
+-containerize with docker/kubernetes

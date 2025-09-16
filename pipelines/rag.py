@@ -1,16 +1,18 @@
+import os
 from langchain_openai import ChatOpenAI
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-from dotenv import load_dotenv
 
-load_dotenv()from pinecone import Pinecone
+
+
+from pinecone import Pinecone, ServerlessSpec
 
 from operations.embedding import Embedder
 
-OPENAI_API_KEY = "OPENAI_API_KEY"
-PINECONE_API_KEY = "PINECONE_API_KEY"
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
 
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0) #temp set to zero, would prefer less distribution (less chance for error)
 
@@ -30,12 +32,12 @@ class FindSimilar(BaseRetriever):
 
     def find_similar(self):
         qvec = self.encode_query()
-        res = self.index.query(vector=qvec, top_k=self.k, include_metadata=True, namespace=self.namespace, filter=self.flt)
+        res = self.idx.query(vector=qvec, top_k=self.k, include_metadata=True, namespace=self.namespace, filter=self.flt)
         matches = res.get("matches", []) #only keeps list of relevant "matches" values from res dict
         docs = []
         for m in res.get("matches", []):
             md = m.get("metadata") or {}
-            text = md.get(self.text_key)
+            text = md.get(self.key_content)
             if not text:
                 continue
             link = md.get("link") or md.get("url") or md.get("source") or (
