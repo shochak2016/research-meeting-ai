@@ -3,9 +3,8 @@ from langchain_core.retrievers import BaseRetriever
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-from dotenv import load_dotenv
 
-load_dotenv()from pinecone import Pinecone
+from pinecone import Pinecone
 
 from operations.embedding import Embedder
 

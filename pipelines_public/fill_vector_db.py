@@ -6,11 +6,8 @@ from dotenv import load_dotenv
 from pinecone import Pinecone, ServerlessSpec
 
 from lxml import etree
-from dotenv import load_dotenv
-load_dotenv()
-
-from operations.embedding import Embedder
 from tqdm import tqdm
+
 from sentence_transformers import SentenceTransformer
 import gc  # For garbage collection
 
