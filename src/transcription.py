@@ -11,13 +11,14 @@ import re
 SENT_END_RE = re.compile(r'[.!?…](?=\s|$)')
 
 class Transcription:
-    def __init__(self, beam_size=1, len_window=10.0, freq=16000, fps=0.02, refresh_rate=0.4, queue_size: int = 50):
+    def __init__(self, beam_size=1, len_window=30.0, freq=16000, fps=0.02, refresh_rate=0.4, chunk_sec=7.5, vad_silence_ms=500, queue_size: int = 50):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.freq = freq
         self.fps = fps
-        self.len_window = 30.0  # give more headroom so segments don't age out
+        self.len_window = len_window  # audio buffer window size
         self.refresh_rate = refresh_rate
         self.beam_size = beam_size
+        self.vad_silence_ms = vad_silence_ms  # VAD silence duration
 
         # Initialize faster-whisper model
         compute_type = "float16" if self.device == "cuda" else "int8"
@@ -41,7 +42,7 @@ class Transcription:
         self.last_final_hyp = ""  # last hypothesis string we finalized (window-scoped)
 
         # time-chunk finalization settings
-        self.CHUNK_SEC = 7.5  # 7.5-second chunks
+        self.CHUNK_SEC = chunk_sec  # time-based chunk finalization
         self.committed_upto_time = 0.0
         self.next_commit_boundary = self.CHUNK_SEC
 
@@ -104,7 +105,7 @@ class Transcription:
                 language="en",
                 beam_size=self.beam_size,
                 vad_filter=True,
-                vad_parameters=dict(min_silence_duration_ms=500),
+                vad_parameters=dict(min_silence_duration_ms=self.vad_silence_ms),
                 no_speech_threshold=0.25,
                 log_prob_threshold=-1.0,
                 compression_ratio_threshold=2.8,

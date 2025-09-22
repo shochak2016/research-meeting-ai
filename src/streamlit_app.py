@@ -112,7 +112,14 @@ class StreamlitTranscriptionManager:
             return
 
         self.is_running = True
-        self.transcriber = Transcription()
+        # Tuned parameters for normal speech speed
+        self.transcriber = Transcription(
+            beam_size=2,           # Better accuracy (default: 1)
+            len_window=15.0,       # Reduced buffer for faster processing (default: 30.0)
+            refresh_rate=0.6,      # More time between updates (default: 0.4)
+            chunk_sec=4.5,         # Faster commitment (default: 7.5)
+            vad_silence_ms=1200    # Longer pauses to avoid splitting sentences (default: 500)
+        )
         self.transcriber.is_running = True  # make callback live
 
         # 🔁 Reset session counters for a fresh run
@@ -406,7 +413,7 @@ st.markdown("""
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     padding: 1.5rem;
     border-radius: 15px;
-    color: white;
+    color: black;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     margin-bottom: 1rem;
 }
@@ -425,6 +432,7 @@ st.markdown("""
     border-radius: 8px;
     padding: 0.75rem 0.9rem;
     background: #ffffff;
+    color: #000000;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     font-size: 0.95rem;
     line-height: 1.35rem;

@@ -228,6 +228,7 @@ def push_to_pinecone(idx, namespace: str, model, api_key: str = PMED_API_KEY, re
                     metadata = {
                         "pmid": row["pmid"], 
                         "title": title,
+                        "abstract": abstract,
                         "pub_date": content.get("pub_date") or "",
                         "authors": content.get("authors") or []  # Store in metadata for filtering
                     }

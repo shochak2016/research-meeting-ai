@@ -34,7 +34,7 @@ class FindSimilar(BaseRetriever):
         docs = []
         for m in res.get("matches", []):
             md = m.get("metadata") or {}
-            text = md.get(self.text_key)
+            text = md.get(self.key_content)
             if not text:
                 continue
             link = md.get("link") or md.get("url") or md.get("source") or (
@@ -46,7 +46,7 @@ class FindSimilar(BaseRetriever):
             docs.append(Document(page_content=text, metadata=meta))
         return docs
 
-def build_rag(query, index_name, model="gpt-4o-mini", temperature=0.0, per_field_chars=1000):
+def build_rag(query, index_name, model="gpt-4o-mini", temperature=0.0, per_field_chars=1000, return_abstract=False):
     pc = Pinecone(api_key=os.environ["PINECONE_API_KEY"])
     index = pc.Index(index_name)
     retriever = FindSimilar(query=query, idx=index)
@@ -57,30 +57,49 @@ def build_rag(query, index_name, model="gpt-4o-mini", temperature=0.0, per_field
             md = d.metadata
             title = (md.get("title") or md.get("name") or "")
             url = (md.get("link") or md.get("url") or md.get("source") or "")
+            abstract = md.get("abstract") or ""
             text = (d.page_content or "")
             if per_field_chars is not None:
                 title = title[:per_field_chars]
+                if abstract:
+                    abstract = abstract[:per_field_chars]
                 text = text[:per_field_chars]
             block = [f"[{i}]"]
             if title:
                 block.append(f"TITLE: {title}")
             if url:
                 block.append(f"URL: {url}")
-            if text:
+            # Use abstract from metadata if available, otherwise fall back to page_content
+            if abstract:
+                block.append(f"ABSTRACT: {abstract}")
+            elif text:
                 block.append(f"ABSTRACT: {text}")
             blocks.append("\n".join(block))
         return "\n\n---\n\n".join(blocks)
 
-    prompt = ChatPromptTemplate.from_messages([
-        (
-            "system",
-            "You are a helpful assistant. You will be given N retrieved documents as CONTEXT. "
-            "For EACH document, produce a JSON object with keys: title (string), summary (2-4 sentences), link (string or null). "
-            "Use TITLE and URL from the context when present. Base the summary strictly on ABSTRACT. "
-            "Return ONLY a JSON array of objects, in the same order as the context blocks [1], [2], ...; no extra text.",
-        ),
-        ("human", "CONTEXT:\n{context}\n\nUSER QUESTION:\n{question}"),
-    ])
+    if return_abstract == False:
+        prompt = ChatPromptTemplate.from_messages([
+            (
+                "system",
+                "You are a helpful assistant. You will be given N retrieved documents as CONTEXT. "
+                "For EACH document, produce a JSON object with keys: title (string), summary (2-4 sentences), link (string or null). "
+                "Use TITLE and URL from the context when present. Base the summary strictly on ABSTRACT. "
+                "Return ONLY a JSON array of objects, in the same order as the context blocks [1], [2], ...; no extra text.",
+            ),
+            ("human", "CONTEXT:\n{context}\n\nUSER QUESTION:\n{question}"),
+        ])
+
+    else:
+        prompt = ChatPromptTemplate.from_messages([
+            (
+                "system",
+                "You are a helpful assistant. You will be given N retrieved documents as CONTEXT. "
+                "For EACH document, produce a JSON object with keys: title (string), abstract (full text), summary (2-4 sentences), link (string or null). "
+                "Use TITLE and URL from the context when present. Base the summary strictly on ABSTRACT. "
+                "Return ONLY a JSON array of objects, in the same order as the context blocks [1], [2], ...; no extra text.",
+            ),
+            ("human", "CONTEXT:\n{context}\n\nUSER QUESTION:\n{question}"),
+        ])
 
     llm = ChatOpenAI(model=model, temperature=temperature)
     parser = JsonOutputParser()
