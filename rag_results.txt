@@ -1,0 +1,39 @@
+================================================================================
+RESEARCH PAPER SEARCH RESULTS
+Query: CRISPR gene therapy
+Timestamp: 2025-09-23 22:53:23
+Number of results: 3
+================================================================================
+
+[1] RESULT #1
+----------------------------------------
+Relevance Score: 0.5175
+PMID: 40899896.0
+Title: [Gene therapy for inner ear disorders: a step into the future].
+Authors: Markova TG, Bakhshinyan VV
+Publication Date: 2025-08-01
+
+Link: https://pubmed.ncbi.nlm.nih.gov/40899896.0/
+
+[2] RESULT #2
+----------------------------------------
+Relevance Score: 0.5082
+PMID: 40906393.0
+Title: One Shock, Not One Cure: Electroporation Reveals Disease-Specific Constraints in Hepatocyte Gene Editing Therapy.
+Authors: Clark C, Pokhrel M, Arthur B, et al.
+Publication Date: 2025-08-20
+
+Link: https://pubmed.ncbi.nlm.nih.gov/40906393.0/
+
+[3] RESULT #3
+----------------------------------------
+Relevance Score: 0.5064
+PMID: 40901270.0
+Title: Therapeutic Opportunities of Marfan Syndrome: Current Perspectives.
+Authors: Feng X, Qu C, Jia P, et al.
+Publication Date: 2025-08-26
+
+Link: https://pubmed.ncbi.nlm.nih.gov/40901270.0/
+
+================================================================================
+END OF RESULTS
