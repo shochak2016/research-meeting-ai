@@ -4,47 +4,64 @@ from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 
+from typing import Any, Optional, List
+
 from pinecone import Pinecone
 
-from operations.embedding import Embedder
+from pipelines.operations.embedding import Embedder
 
 OPENAI_API_KEY = "OPENAI_API_KEY"
 PINECONE_API_KEY = "PINECONE_API_KEY"
 
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0) #temp set to zero, would prefer less distribution (less chance for error)
 
-class FindSimilar(BaseRetriever):
-    def __init__(self, query, idx, top_k=3, flt=None, namespace=None, key_content="abstract"):
+class FindSimilar:
+    def __init__(self, idx: Any, top_k: int = 3, flt: Optional[Any] = None, 
+                 namespace: Optional[str] = None):
+        if not isinstance(top_k, int) or top_k <= 0:
+            raise ValueError("top_k must be a positive integer")
         self.idx = idx
         self.k = top_k
-        self.namespace=namespace
+        self.namespace = namespace
         self.flt = flt
-        self.query = query
         self.embedder = Embedder(obj=None)
-        self.key_content = key_content
 
-    def encode_query(self):       
-        vec = self.embedder.str_to_vec(text=self.query, is_query=True)
+    def encode_query(self, query):
+        vec = self.embedder.str_to_vec(text=query, is_query=True)
+        if hasattr(vec, "tolist"):
+            return vec.tolist()
         return vec
 
-    def find_similar(self):
-        qvec = self.encode_query()
-        res = self.index.query(vector=qvec, top_k=self.k, include_metadata=True, namespace=self.namespace, filter=self.flt)
-        matches = res.get("matches", []) #only keeps list of relevant "matches" values from res dict
+    def find_similar(self, q):
+        import time
+        start_time = time.time()
+
+        qvec = self.encode_query(q)
+
+        res = self.idx.query(
+            vector=qvec,
+            top_k=self.k,
+            include_metadata=True,
+            namespace=self.namespace,
+            filter=self.flt
+        )
+
+        matches = getattr(res, "matches", None) or res.get("matches", [])
+
         docs = []
-        for m in res.get("matches", []):
-            md = m.get("metadata") or {}
-            text = md.get(self.key_content)
-            if not text:
-                continue
-            link = md.get("link") or md.get("url") or md.get("source") or (
-                f"https://pubmed.ncbi.nlm.nih.gov/{md.get('pmid')}/" if md.get("pmid") else ""
-            )
-            meta = {**md, "_id": m.get("id"), "_score": m.get("score")}
-            if link:
-                meta["link"] = link
-            docs.append(Document(page_content=text, metadata=meta))
-        return docs
+        for m in matches:
+            md = getattr(m, "metadata", None) or (m.get("metadata") if isinstance(m, dict) else {}) or {}
+            mid = getattr(m, "id", None) if not isinstance(m, dict) else m.get("id")
+            mscore = getattr(m, "score", None) if not isinstance(m, dict) else m.get("score")
+
+            # Build metadata dict
+            meta = {**md, "_id": mid, "_score": mscore}
+
+            # If you don’t need text, make page_content minimal
+            docs.append(Document(page_content="", metadata=meta))
+
+        elapsed_time = time.time() - start_time
+        return docs, elapsed_time
 
 def build_rag(query, index_name, model="gpt-4o-mini", temperature=0.0, per_field_chars=1000, return_abstract=False):
     pc = Pinecone(api_key=os.environ["PINECONE_API_KEY"])
