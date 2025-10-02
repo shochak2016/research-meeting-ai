@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test script for LLM summarization using the ask function from pipelines/rag.py
+Test script for LLM summarization using the ask function from pipelines_public/rag.py
 Usage: python test_llm_summarization.py "your search query" --top_k 3 --return_abstract
 """
 
