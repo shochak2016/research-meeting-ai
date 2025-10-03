@@ -14,3 +14,8 @@ The command to run the app is:
 The command to manually kill Streamlit processes is:
   pkill -f streamlit
 
+To make sure all necessary packages are on your computer (preferable in a virtual environment) run:
+  pip install -r requirements.txt
+
+
+

@@ -10,7 +10,7 @@ from typing import Any, Optional, List
 
 from pinecone import Pinecone
 
-from pipelines.operations.embedding import Embedder
+from operations.embedding import Embedder
 
 OPENAI_API_KEY = "OPENAI_API_KEY"
 PINECONE_API_KEY = "PINECONE_API_KEY"
