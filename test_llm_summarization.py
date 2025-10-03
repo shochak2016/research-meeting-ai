@@ -16,7 +16,7 @@ from rich.text import Text
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from pipelines.rag import ask
+from pipelines_public.rag import ask
 
 # Load environment variables
 load_dotenv()

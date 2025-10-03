@@ -65,11 +65,13 @@ class FindSimilar:
         elapsed_time = time.time() - start_time
         return docs, elapsed_time
 
-def build_rag(query, index_name, model="gpt-4o-mini", temperature=0.0, per_field_chars=1000, return_abstract=False):
+def build_rag(retriever, model="gpt-4o-mini", temperature=0.0, per_field_chars=1000, return_abstract=False):
+    '''
     pc = Pinecone(api_key=os.environ["PINECONE_API_KEY"])
+    
     index = pc.Index(index_name)
     retriever = FindSimilar(query=query, idx=index)
-
+    '''
     def format_docs(docs):
         blocks = []
         for i, d in enumerate(docs, 1):
