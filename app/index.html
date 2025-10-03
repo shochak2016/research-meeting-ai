@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Live Transcription + Research Assistant</title>
+<style>
+  :root{
+    --bg:#0f1724;
+    --card:#0b1220;
+    --muted:#9aa7bf;
+    --accent:#7c5cff;
+    --glass: rgba(255,255,255,0.03);
+    --radius:12px;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    color-scheme: dark;
+  }
+
+  html,body{
+    height:100%;
+    margin:0;
+    background:
+      linear-gradient(180deg, rgba(12,17,28,1) 0%, rgba(5,8,15,1) 100%);
+    color: #e6eef8;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+  }
+
+  .container{
+    max-width:1200px;
+    margin:28px auto;
+    padding:20px;
+    display:grid;
+    grid-template-columns: 1fr 420px;
+    gap:20px;
+  }
+
+  header{
+    grid-column: 1 / -1;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    margin-bottom:6px;
+  }
+  header h1{
+    margin:0;
+    font-size:20px;
+    letter-spacing: -0.2px;
+  }
+  header p{ margin:0; color:var(--muted); font-size:13px; }
+
+  .card{
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius: var(--radius);
+    padding:14px;
+    box-shadow: 0 6px 18px rgba(2,6,23,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.03);
+  }
+
+  /* Left column layout */
+  .left-col{
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+
+  /* Transcription area */
+  .transcription{
+    min-height:220px;
+    max-height:420px;
+    overflow:auto;
+    padding:12px;
+    border-radius:10px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));
+    border:1px dashed rgba(255,255,255,0.02);
+    font-size:14px;
+    line-height:1.45;
+    color:#dfe9fb;
+    white-space:pre-wrap;
+  }
+
+  .controls{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin-top:10px;
+  }
+
+  button, select, input[type="number"], textarea{
+    background:var(--glass);
+    border: 1px solid rgba(255,255,255,0.04);
+    padding:8px 12px;
+    color:inherit;
+    border-radius:8px;
+    font-size:13px;
+    outline:none;
+  }
+
+  button.primary{
+    background: linear-gradient(90deg, var(--accent), #5e9eff);
+    color:white;
+    font-weight:600;
+    border: none;
+    box-shadow: 0 6px 18px rgba(124,92,255,0.12);
+  }
+
+  .small{
+    padding:6px 10px;
+    font-size:13px;
+  }
+
+  .muted{
+    color:var(--muted);
+    font-size:13px;
+  }
+
+  /* Right column layout */
+  .right-col{
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+
+  label.block{ display:block; margin-bottom:6px; font-size:13px; color:var(--muted); }
+
+  .qa-area textarea, .notes-area textarea, .summary-area textarea{
+    width:100%;
+    min-height:86px;
+    resize:vertical;
+    margin-top:6px;
+    padding:10px;
+    font-size:13px;
+    background:transparent;
+  }
+
+  .results-list{
+    margin-top:8px;
+    max-height:240px;
+    overflow:auto;
+    border-radius:8px;
+    padding:8px;
+    border:1px solid rgba(255,255,255,0.02);
+    background:rgba(255,255,255,0.01);
+  }
+
+  .result-item{
+    display:flex;
+    gap:8px;
+    align-items:flex-start;
+    padding:8px;
+    border-radius:6px;
+  }
+  .result-item + .result-item{ border-top:1px solid rgba(255,255,255,0.02); }
+  .result-meta{ font-size:13px; color:var(--muted); }
+
+  footer{
+    grid-column: 1 / -1;
+    text-align:center;
+    color:var(--muted);
+    margin-top:12px;
+    font-size:13px;
+  }
+
+  /* Responsive */
+  @media(max-width:980px){
+    .container{ grid-template-columns: 1fr; padding:12px; }
+    .right-col{ order:2; }
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Research & Meeting Assistant</h1>
+        <p class="muted">Live transcription, Q&A (hook to your generative model), reference search, summarizer, and notes.</p>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <small class="muted">Status:</small>
+        <div id="status" class="muted">idle</div>
+      </div>
+    </header>
+
+    <!-- LEFT COLUMN -->
+    <div class="left-col">
+      <div class="card">
+        <h3 style="margin:0 0 8px 0;">Live Transcription</h3>
+        <div id="transcription" class="transcription" contenteditable="false" aria-live="polite"></div>
+
+        <div class="controls" style="margin-top:10px;">
+          <button id="startBtn" class="primary small">Start Recording</button>
+          <button id="stopBtn" class="small" disabled>Stop</button>
+          <button id="clearBtn" class="small">Clear</button>
+
+          <div style="margin-left:auto;display:flex;gap:8px;">
+            <button id="saveTxtBtn" class="small">Save .txt</button>
+            <button id="saveJsonBtn" class="small">Export .json</button>
+          </div>
+        </div>
+
+        <div style="margin-top:10px;" class="muted">
+          Note: Speech recognition uses the browser Web Speech API where available. Microphone access is required.
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin:0 0 8px 0;">Q & A Assistant</h3>
+        <div class="qa-area">
+          <label class="block">Question / Prompt</label>
+          <textarea id="qaPrompt" placeholder="Ask something about the transcript, a paper, or general research..."></textarea>
+
+          <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+            <button id="askBtn" class="primary small">Ask Assistant</button>
+            <button id="askWithContextBtn" class="small">Ask with Transcript</button>
+            <select id="modelSelect" aria-label="Select model" title="Backend model endpoint selector">
+              <option value="local">Use local demo summarizer</option>
+              <option value="api">Send to /api/ai (needs backend)</option>
+            </select>
+          </div>
+
+          <label class="block" style="margin-top:10px;">Assistant reply</label>
+          <div id="assistantReply" class="transcription" style="min-height:120px;"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin:0 0 8px 0;">Notes</h3>
+        <div class="notes-area">
+          <label class="block">Personal notes</label>
+          <textarea id="notes" placeholder="Write meeting notes, todos, etc."></textarea>
+
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button id="saveNotesBtn" class="small">Save Notes</button>
+            <button id="exportNotesBtn" class="small">Export Notes</button>
+            <button id="clearNotesBtn" class="small">Clear</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <aside class="right-col">
+      <div class="card">
+        <h3 style="margin:0 0 8px 0;">References / Paper Search</h3>
+
+        <label class="block">Query</label>
+        <input id="refQuery" type="text" placeholder="e.g., federated learning privacy, ultracapacitor modeling" />
+
+        <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+          <label class="muted">Results:</label>
+          <input id="numResults" type="number" min="1" max="50" value="5" style="width:84px;" />
+          <button id="searchRefsBtn" class="small">Search</button>
+          <div style="margin-left:auto;" class="muted" id="refsStatus"></div>
+        </div>
+
+        <div id="results" class="results-list" aria-live="polite" aria-atomic="false">
+          <!-- search results appended here -->
+          <div class="muted" style="padding:8px;">No results yet. Use the search box above.</div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+          <button id="summarizeSelectedBtn" class="primary small">Summarize Selected</button>
+          <select id="summaryMode">
+            <option value="quick">Quick extractive (client)</option>
+            <option value="ai">Use backend AI (server)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin:0 0 8px 0;">Summarizer</h3>
+        <label class="block">Summary</label>
+        <div id="summary" class="summary-area transcription" style="min-height:140px;"></div>
+
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button id="saveSummaryBtn" class="small">Save Summary</button>
+          <button id="copySummaryBtn" class="small">Copy</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin:0 0 8px 0;">Utilities</h3>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button id="downloadAllBtn" class="small">Download entire session (.zip)</button>
+          <button id="clearAllBtn" class="small">Clear All</button>
+        </div>
+        <div class="muted" style="margin-top:8px;">
+          Tip: Wire the "Model API" options to your serverless endpoints. For local demos, the client-side heuristics will run.
+        </div>
+      </div>
+    </aside>
+
+    <footer>
+      Built for demo: replace placeholder endpoints ("/api/ai", "/api/summarize") with your own secure endpoints.
+    </footer>
+  </div>
+
+<script>
+/* -------------------------
+   Utilities
+   ------------------------- */
+const $ = id => document.getElementById(id);
+const statusEl = $('status');
+
+/* -------------------------
+   TRANSCRIPTION (Web Speech API)
+   ------------------------- */
+let recognition = null;
+let isRecording = false;
+
+function supportsSpeechRecognition(){
+  return ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window);
+}
+
+function initRecognition(){
+  window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!supportsSpeechRecognition()) return null;
+  const r = new SpeechRecognition();
+  r.continuous = true;
+  r.interimResults = true;
+  r.lang = navigator.language || 'en-US';
+  r.maxAlternatives = 1;
+  return r;
+}
+
+function appendTranscript(text, isFinal){
+  const node = $('transcription');
+  // simple timestamp
+  const time = new Date().toLocaleTimeString();
+  if(isFinal){
+    index = node.textContent.indexOf('[interim]');
+    node.textContent = node.textContent.substring(0, index)
+    node.textContent += `${text}\n`;
+  } else {
+    // show interim inside a faint span (we'll replace later)
+    const interimTag = '[interim] ' + text;
+    // remove previous interim line (simple heuristic)
+    const current = node.textContent.replace(/\n\[.*\] \[interim\].*\n?$/,'');
+    node.textContent = current + `\n[${time}] [interim] ${text}\n`;
+  }
+  node.scrollTop = node.scrollHeight;
+}
+
+function startRecording(){
+  if(!supportsSpeechRecognition()){
+    alert('SpeechRecognition not supported in this browser. Please use Chrome/Edge or provide a fallback.');
+    return;
+  }
+  if(!recognition) recognition = initRecognition();
+  recognition.onstart = () => {
+    isRecording = true;
+    $('startBtn').disabled = true;
+    $('stopBtn').disabled = false;
+    statusEl.textContent = 'recording';
+  };
+  recognition.onerror = (e) => {
+    console.error('recognition error', e);
+    statusEl.textContent = 'error';
+  };
+  recognition.onend = () => {
+    isRecording = false;
+    $('startBtn').disabled = false;
+    $('stopBtn').disabled = true;
+    statusEl.textContent = 'idle';
+  };
+  recognition.onresult = (ev) => {
+    let interim = '';
+    let final = '';
+    for(let i = ev.resultIndex; i < ev.results.length; ++i){
+      const res = ev.results[i];
+      if(res.isFinal) final += res[0].transcript;
+      else interim += res[0].transcript;
+    }
+    if(final.trim()) appendTranscript(final.trim(), true);
+    else if(interim.trim()) appendTranscript(interim.trim(), false);
+  };
+  recognition.start();
+}
+
+function stopRecording(){
+  if(recognition){
+    recognition.stop();
+    statusEl.textContent = 'stopping…';
+  }
+}
+
+/* -------------------------
+   Save & Export (client-side)
+   ------------------------- */
+function downloadText(filename, content){
+  const blob = new Blob([content], {type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+
+function saveTranscriptTxt(){
+  const t = $('transcription').textContent.trim();
+  if(!t) { alert('Transcript is empty.'); return; }
+  downloadText(`transcript_${timestampFilename()}.txt`, t);
+}
+
+function saveTranscriptJson(){
+  const t = $('transcription').textContent.trim();
+  const obj = {
+    created_at: new Date().toISOString(),
+    transcript: t,
+    notes: $('notes').value || ''
+  };
+  downloadText(`transcript_${timestampFilename()}.json`, JSON.stringify(obj, null, 2));
+}
+
+function saveNotes(){
+  const n = $('notes').value;
+  if(!n){ alert('Notes empty.'); return; }
+  downloadText(`notes_${timestampFilename()}.txt`, n);
+}
+
+function exportNotes(){
+  saveNotes();
+}
+
+function timestampFilename(){
+  return new Date().toISOString().replace(/[:.]/g,'-');
+}
+
+/* -------------------------
+   Simple QA Assistant Hook
+   ------------------------- */
+async function askAssistant(useTranscript=false){
+  const prompt = $('qaPrompt').value.trim();
+  if(!prompt){ alert('Please enter a prompt.'); return; }
+
+  const replyEl = $('assistantReply');
+  replyEl.textContent = 'Thinking...';
+
+  // Compose payload
+  let payload = { prompt };
+  if(useTranscript){
+    payload.transcript = $('transcription').textContent.trim();
+  }
+
+  const mode = $('modelSelect').value;
+
+  if(mode === 'local'){
+    // very simple local reply: echo + short heuristic "answer"
+    const t = payload.transcript || '';
+    let contextual = t ? `\n\nContext excerpt (first 200 chars):\n${t.slice(0,200)}\n` : '';
+    // naive "answer": reverse prompt words + suggest TODOs
+    const answer = `DEMO RESPONSE\n\nPrompt: ${prompt}\n\n${contextual}Suggested next steps:\n- Clarify scope\n- Extract keywords\n- (This is a local demo; wire to a real AI endpoint for better results.)`;
+    replyEl.textContent = answer;
+    return;
+  }
+
+  if(mode === 'api'){
+    // Placeholder fetch to your backend. Replace URL and auth as needed.
+    try {
+      const res = await fetch('/api/ai', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if(!res.ok) throw new Error('AI endpoint error: ' + res.status);
+      const data = await res.json();
+      // expect { reply: "..." }
+      replyEl.textContent = data.reply || JSON.stringify(data, null, 2);
+    } catch(err){
+      console.error(err);
+      replyEl.textContent = 'Error contacting AI endpoint. See console for details.';
+    }
+  }
+}
+
+/* -------------------------
+   References Search (CrossRef demo)
+   ------------------------- */
+async function searchReferences(){
+  const query = $('refQuery').value.trim();
+  const n = parseInt($('numResults').value) || 5;
+  const resultsEl = $('results');
+  const refsStatus = $('refsStatus');
+  if(!query){ alert('Enter a query first.'); return; }
+  resultsEl.innerHTML = `<div class="muted" style="padding:8px;">Searching for "${escapeHtml(query)}" ...</div>`;
+  refsStatus.textContent = 'searching...';
+
+
+  references = await fetch('/references')
+  alert(references)
+
+  try {
+    // CrossRef API: good public demo. Some hosts may require CORS allowances.
+    const url = `https://api.crossref.org/works?rows=${encodeURIComponent(n)}&query=${encodeURIComponent(query)}`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('Search failed: ' + res.status);
+    const data = await res.json();
+    const items = (data.message?.items || []);
+    if(items.length === 0){
+      resultsEl.innerHTML = `<div class="muted" style="padding:8px;">No results.</div>`;
+      refsStatus.textContent = '';
+      return;
+    }
+    // Build UI list
+    resultsEl.innerHTML = '';
+    items.forEach((it, idx) => {
+      const title = (it.title && it.title[0]) ? it.title[0] : '(no title)';
+      const authors = (it.author || []).map(a => `${a.given || ''} ${a.family || ''}`.trim()).slice(0,3).join(', ');
+      const doi = it.DOI || '';
+      const abstract = it.abstract || '';
+      const container = document.createElement('div');
+      container.className = 'result-item';
+      container.innerHTML = `
+        <input type="checkbox" data-idx="${idx}" id="r${idx}" style="margin-top:6px;" />
+        <div style="flex:1;">
+          <label for="r${idx}" style="font-weight:600; cursor:pointer;">${escapeHtml(title)}</label>
+          <div class="result-meta">${escapeHtml(authors)} ${doi ? '· DOI: ' + doi : ''}</div>
+          <div class="muted" style="margin-top:6px; font-size:13px;">${abstract ? stripHtml(abstract).slice(0,300) + (abstract.length>300?'…':'') : ''}</div>
+        </div>
+      `;
+      // Attach full metadata to element for later summarize
+      container.dataset.item = JSON.stringify(it);
+      resultsEl.appendChild(container);
+    });
+    refsStatus.textContent = `${items.length} results`;
+  } catch(err){
+    console.error(err);
+    resultsEl.innerHTML = `<div class="muted" style="padding:8px;">Search error. See console.</div>`;
+    refsStatus.textContent = '';
+  }
+}
+
+function getSelectedReferences(){
+  const resultsEl = $('results');
+  const checked = Array.from(resultsEl.querySelectorAll('input[type=checkbox]:checked'));
+  return checked.map(cb => {
+    const itm = cb.closest('.result-item');
+    try { return JSON.parse(itm.dataset.item); } catch(e){ return null; }
+  }).filter(Boolean);
+}
+
+/* -------------------------
+   Summarize Selected
+   - "quick" mode: client-side extractive (first sentences of abstract)
+   - "ai" mode: calls /api/summarize (placeholder)
+   ------------------------- */
+function quickExtractiveSummary(item){
+  // if CrossRef provides abstract with HTML (JATS), strip tags and take first 2 sentences
+  const abstractRaw = item.abstract || '';
+  const text = abstractRaw ? stripHtml(abstractRaw) : (item.title?.[0] || '');
+  // naive sentence split
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+  const chosen = sentences.slice(0,2).join(' ').trim();
+  return chosen || '(no abstract available for quick summary)';
+}
+
+async function summarizeSelected(){
+  const mode = $('summaryMode').value;
+  const sel = getSelectedReferences();
+  if(sel.length === 0){ alert('Select at least one paper to summarize.'); return; }
+
+  $('summary').textContent = 'Generating summary...';
+
+  if(mode === 'quick'){
+    const summaries = sel.map((it, i) => {
+      return `Title: ${it.title?.[0] || '(untitled)'}\n\n${quickExtractiveSummary(it)}\n\n---\n`;
+    }).join('\n');
+    $('summary').textContent = summaries;
+    return;
+  }
+
+  if(mode === 'ai'){
+    // Backend endpoint expected to accept a list of papers and return a summary.
+    try {
+      const res = await fetch('/api/summarize', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ papers: sel })
+      });
+      if(!res.ok) throw new Error('Summarize endpoint error ' + res.status);
+      const out = await res.json();
+      // expect { summary: "..." } or per-paper summaries
+      $('summary').textContent = out.summary || JSON.stringify(out, null, 2);
+    } catch(err){
+      console.error(err);
+      $('summary').textContent = 'Error contacting summarizer backend. See console.';
+    }
+  }
+}
+
+/* -------------------------
+   Small utility helpers
+   ------------------------- */
+function escapeHtml(str){
+  return String(str || '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[s]));
+}
+function stripHtml(html){
+  return String(html || '').replace(/<[^>]*>/g, '').replace(/\s+/g,' ').trim();
+}
+
+/* -------------------------
+   Simple session zip (demo)
+   ------------------------- */
+async function downloadSessionZip(){
+  // Simple approach: prepare three files and download as individual files.
+  // Producing a zip in pure JS requires extra libs; to keep single-file, we will create a folder-like download by zipping is left as an exercise.
+  // Here we trigger three downloads grouped by filename prefix.
+  const base = `session_${timestampFilename()}`;
+  downloadText(`${base}_transcript.txt`, $('transcription').textContent.trim());
+  downloadText(`${base}_notes.txt`, $('notes').value || '');
+  downloadText(`${base}_summary.txt`, $('summary').textContent || '');
+}
+
+/* -------------------------
+   Copy / Save summary
+   ------------------------- */
+function saveSummary(){
+  const s = $('summary').textContent;
+  if(!s) { alert('No summary to save.'); return; }
+  downloadText(`summary_${timestampFilename()}.txt`, s);
+}
+function copySummary(){
+  const s = $('summary').textContent;
+  if(!s){ alert('No summary to copy.'); return; }
+  navigator.clipboard?.writeText(s).then(()=> alert('Summary copied to clipboard.'), ()=> alert('Copy failed.'));
+}
+
+/* -------------------------
+   Wire up UI
+   ------------------------- */
+document.addEventListener('DOMContentLoaded', () => {
+  $('startBtn').addEventListener('click', startRecording);
+  $('stopBtn').addEventListener('click', stopRecording);
+  $('clearBtn').addEventListener('click', () => $('transcription').textContent = '');
+  $('saveTxtBtn').addEventListener('click', saveTranscriptTxt);
+  $('saveJsonBtn').addEventListener('click', saveTranscriptJson);
+
+  $('askBtn').addEventListener('click', () => askAssistant(false));
+  $('askWithContextBtn').addEventListener('click', () => askAssistant(true));
+
+  $('saveNotesBtn').addEventListener('click', saveNotes);
+  $('exportNotesBtn').addEventListener('click', exportNotes);
+  $('clearNotesBtn').addEventListener('click', () => $('notes').value = '');
+
+  $('searchRefsBtn').addEventListener('click', searchReferences);
+  $('summarizeSelectedBtn').addEventListener('click', summarizeSelected);
+
+  $('saveSummaryBtn').addEventListener('click', saveSummary);
+  $('copySummaryBtn').addEventListener('click', copySummary);
+
+  $('downloadAllBtn').addEventListener('click', downloadSessionZip);
+  $('clearAllBtn').addEventListener('click', () => {
+    if(confirm('Clear transcript, notes, summary, and results?')) {
+      $('transcription').textContent = '';
+      $('notes').value = '';
+      $('summary').textContent = '';
+      $('results').innerHTML = `<div class="muted" style="padding:8px;">No results yet. Use the search box above.</div>`;
+    }
+  });
+
+  // inform user whether speech API is available
+  if(!supportsSpeechRecognition()){
+    statusEl.textContent = 'speech recognition not available';
+    $('startBtn').title = 'SpeechRecognition not available in this browser';
+  } else {
+    statusEl.textContent = 'idle';
+  }
+});
+</script>
+</body>
+</html>

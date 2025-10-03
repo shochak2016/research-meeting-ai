@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Research Assistant</title>
+<style>
+  :root {
+    --bg:#0f1724;
+    --card:#0b1220;
+    --muted:#9aa7bf;
+    --accent:#7c5cff;
+    --glass: rgba(255,255,255,0.03);
+    --radius:12px;
+    font-family: Inter, ui-sans-serif, system-ui;
+    color-scheme: dark;
+  }
+  body { margin:0; background:#0c111c; color:#e6eef8; }
+
+  .container {
+    max-width:1200px; margin:0 auto; padding:20px;
+    display:grid; grid-template-columns: 1fr 380px; gap:20px;
+  }
+
+  header { grid-column:1/-1; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; }
+  h1 { margin:0; font-size:20px; }
+  p.muted { margin:0; color:var(--muted); font-size:13px; }
+
+  .card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius: var(--radius); padding:16px;
+    border:1px solid rgba(255,255,255,0.05);
+  }
+
+  .main-col { display:flex; flex-direction:column; gap:16px; }
+  .sidebar { display:flex; flex-direction:column; }
+
+  textarea, input, button, select {
+    background:var(--glass); border:1px solid rgba(255,255,255,0.05);
+    border-radius:8px; color:inherit; font-size:13px;
+    padding:8px; resize:vertical;
+  }
+
+  button.primary {
+    background: linear-gradient(90deg, var(--accent), #5e9eff);
+    color:white; font-weight:600; border:none;
+  }
+
+  .transcription {
+    min-height:200px; max-height:400px; overflow:auto;
+    font-size:13px; white-space:pre-wrap;
+    padding:8px; background:rgba(255,255,255,0.02);
+    border-radius:8px;
+  }
+
+  .muted { color:var(--muted); font-size:13px; }
+
+  /* Chat messages */
+  #chatHistory {
+    min-height:250px; max-height:400px; overflow-y:auto;
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:8px;
+    padding:8px; margin-top:8px;
+    background:rgba(255,255,255,0.01);
+  }
+  .msg { margin:6px 0; line-height:1.4; }
+  .msg.user .role { color: var(--accent); font-weight:600; }
+  .msg.assistant .role { color: #10a37f; font-weight:600; }
+
+  /* Match textarea to conversation box */
+  #qaPrompt {
+    width: 100%;
+    min-height: 60px;
+    resize: vertical;
+    box-sizing: border-box;
+  }
+
+  /* Transcript Drawer */
+  #transcriptDrawer {
+    position:fixed;
+    top:0;
+    right:-400px;
+    width:420px;
+    height:100%;
+    background:#101623;
+    border-left:1px solid rgba(255,255,255,0.1);
+    box-shadow:-4px 0 12px rgba(0,0,0,0.4);
+    transition:right 0.3s ease;
+    display:flex;
+    flex-direction:column;
+    padding:16px;
+    z-index:1000;
+  }
+  #transcriptDrawer.open { right:0; }
+
+  /* Notes height */
+  .sidebar .card {
+    height:485px;
+    display:flex;
+    flex-direction:column;
+  }
+  .sidebar .card textarea {
+    height:100%;
+    resize:vertical;
+  }
+</style>
+
+<!-- jsPDF CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <h1>Research Assistant</h1>
+      <p class="muted">Chat + References first — Notes fixed, Transcript slides out on hover.</p>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <small class="muted">Status:</small>
+      <div id="status" class="muted">idle</div>
+    </div>
+  </header>
+
+  <!-- MAIN COLUMN -->
+  <div class="main-col">
+    <!-- Q&A -->
+    <div class="card">
+      <h3>Q&A Assistant</h3>
+      <textarea id="qaPrompt" placeholder="Ask a question..."></textarea>
+      <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <button id="askBtn" class="primary">Ask</button>
+        <button id="askWithContextBtn">Ask with Transcript</button>
+        <label style="font-size:13px;">
+          <input type="checkbox" id="webSearchToggle"> Web Search
+        </label>
+        
+      </div>
+      <h4 style="margin-top:12px;">Conversation</h4>
+      <div id="chatHistory"></div>
+    </div>
+
+    <!-- References -->
+    <div class="card">
+      <h3>References</h3>
+      <input id="refQuery" type="text" placeholder="Search papers..." />
+      <div style="margin-top:8px; display:flex; gap:8px;">
+        <input id="numResults" type="number" value="5" min="1" max="20" style="width:70px;" />
+        <button id="searchRefsBtn">Search</button>
+      </div>
+      <div id="results" class="transcription muted">No results yet.</div>
+      <div style="margin-top:8px; display:flex; gap:8px;">
+        <button id="summarizeSelectedBtn" class="primary">Summarize Selected</button>
+        <select id="summaryMode">
+          <option value="quick">Quick</option>
+          <option value="ai">AI</option>
+        </select>
+      </div>
+      <h4 style="margin-top:12px;">Summary</h4>
+      <div id="summary" class="transcription"></div>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="card">
+      <h3>Notes</h3>
+      <textarea id="notes" placeholder="Your notes here..."></textarea>
+      <div style="margin-top:8px; display:flex; gap:8px;">
+        <button id="saveNotesBtn">Save Notes</button>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- TRANSCRIPT DRAWER -->
+<div id="transcriptDrawer">
+  <h3>Transcript</h3>
+  <div id="transcription" class="transcription" contenteditable="false" aria-live="polite"></div>
+  <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+    <button id="startBtn" class="primary">Start</button>
+    <button id="stopBtn" disabled>Stop</button>
+    <button id="clearBtn">Clear</button>
+    <button id="saveTxtBtn">Save .txt</button>
+    <button id="savePdfBtn">Save .pdf</button>
+  </div>
+  <div style="margin-top:10px;" class="muted">
+    Note: Speech recognition uses the browser Web Speech API. Microphone access required.
+  </div>
+</div>
+
+<script>
+  /* -------------------------
+     Chat Functions
+     ------------------------- */
+  function addMessage(role, text){
+    const box = document.getElementById('chatHistory');
+    const div = document.createElement('div');
+    div.className = 'msg ' + role;
+    div.innerHTML = `<span class="role">${role==='user'?'You':'Assistant'}:</span> ${text.replace(/\n/g, "<br>")}`;
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  async function askAssistant(useTranscript = false) {
+    const inputEl = document.getElementById('qaPrompt');
+    const prompt = inputEl.value.trim();
+
+    if (!prompt) {
+      alert('Please enter a prompt.');
+      return;
+    }
+
+    // ✅ Clear the input box after grabbing its value
+    inputEl.value = "";
+
+    const useWeb = document.getElementById('webSearchToggle').checked;
+    addMessage('user', prompt + (useWeb ? ' 🔍' : ''));
+
+    let payload = { 
+      prompt, 
+      use_web_search: useWeb, 
+      num_search_results: 3 
+    };
+    
+    if (useTranscript) {
+      payload.transcript = document.getElementById('transcription').textContent.trim();
+    }
+
+    try {
+      const res = await fetch("/api/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || ('AI endpoint error: ' + res.status));
+      }
+
+      if (data.error) {
+        addMessage('assistant', '❌ Backend error: ' + data.error);
+        return;
+      }
+
+      addMessage(
+        'assistant',
+        (data.reply || '[error]') +
+          (data.used_web ? `\n(Web search used: ${data.used_web})` : '')
+      );
+    } catch (err) {
+      console.error(err);
+      addMessage('assistant', '❌ Error contacting AI endpoint.');
+    }
+  }
+
+  /* -------------------------
+     References Search
+     ------------------------- */
+  async function searchReferences() {
+    const query = document.getElementById('refQuery').value.trim();
+    const num = parseInt(document.getElementById('numResults').value) || 5;
+
+    if (!query) {
+      alert('Please enter a search query.');
+      return;
+    }
+
+    document.getElementById('results').textContent = "Searching...";
+
+    try {
+      const res = await fetch("/api/search-papers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, top_k: num })
+      });
+
+      if (!res.ok) throw new Error("Search error: " + res.status);
+
+      const data = await res.json();
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = "";
+
+      if (!data.results || data.results.length === 0) {
+        resultsDiv.textContent = "No results found.";
+        return;
+      }
+
+      data.results.forEach((r, i) => {
+        const item = document.createElement("div");
+        item.style.marginBottom = "10px";
+        item.innerHTML = `
+          <label>
+            <input type="checkbox" class="refCheck" value="${i}">
+            <strong>${r.metadata?.title || "Untitled"}</strong><br>
+            <small>${r.metadata?.authors || ""}</small><br>
+            <a href="${r.metadata?.url || '#'}" target="_blank">${r.metadata?.url || ""}</a>
+          </label>
+        `;
+        resultsDiv.appendChild(item);
+      });
+    } catch (err) {
+      console.error(err);
+      document.getElementById('results').textContent = "❌ Error retrieving results.";
+    }
+  }
+
+  /* -------------------------
+     Notes
+     ------------------------- */
+  function saveNotes() {
+    const n = document.getElementById('notes').value;
+    if (!n) {
+      alert('Notes empty.');
+      return;
+    }
+    const blob = new Blob([n], { type: "text/plain" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "notes.txt";
+    a.click();
+  }
+
+  /* -------------------------
+     Transcript Drawer Hover
+     ------------------------- */
+  const drawer = document.getElementById('transcriptDrawer');
+  drawer.addEventListener('mouseenter', () => drawer.classList.add('open'));
+  drawer.addEventListener('mouseleave', () => drawer.classList.remove('open'));
+
+  /* -------------------------
+     Transcript Functions
+     ------------------------- */
+  let recognition = null;
+  let isRecording = false;
+
+  function supportsSpeechRecognition() {
+    return ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window);
+  }
+
+  function initRecognition() {
+    window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!supportsSpeechRecognition()) return null;
+    const r = new SpeechRecognition();
+    r.continuous = true;
+    r.interimResults = true;
+    r.lang = navigator.language || 'en-US';
+    r.maxAlternatives = 1;
+    return r;
+  }
+
+  function appendTranscript(text,isFinal){
+    const node=document.getElementById('transcription');
+    const time=new Date().toLocaleTimeString();
+    if(isFinal){
+      let index=node.textContent.indexOf('[interim]');
+      if(index>=0) node.textContent=node.textContent.substring(0,index);
+      node.textContent+=`${text}\n`;
+    } else {
+      const current=node.textContent.replace(/\n\[.*\] \[interim\].*\n?$/,'');
+      node.textContent=current+`\n[${time}] [interim] ${text}\n`;
+    }
+    node.scrollTop=node.scrollHeight;
+  }
+
+  function startRecording(){
+    if(!supportsSpeechRecognition()){
+      alert('SpeechRecognition not supported. Use Chrome/Edge.');
+      return;
+    }
+    if(!recognition) recognition=initRecognition();
+    recognition.onstart=()=>{ isRecording=true; document.getElementById('startBtn').disabled=true; document.getElementById('stopBtn').disabled=false; };
+    recognition.onerror=(e)=>{ console.error('recognition error',e); };
+    recognition.onend=()=>{ isRecording=false; document.getElementById('startBtn').disabled=false; document.getElementById('stopBtn').disabled=true; };
+    recognition.onresult=(ev)=>{
+      let interim='',final='';
+      for(let i=ev.resultIndex;i<ev.results.length;++i){
+        const res=ev.results[i];
+        if(res.isFinal) final+=res[0].transcript;
+        else interim+=res[0].transcript;
+      }
+      if(final.trim()) appendTranscript(final.trim(),true);
+      else if(interim.trim()) appendTranscript(interim.trim(),false);
+    };
+    recognition.start();
+  }
+
+  function stopRecording(){
+    if(recognition){ recognition.stop(); }
+  }
+
+  function saveTranscriptTxt(){
+    const t=document.getElementById('transcription').textContent.trim();
+    if(!t){ alert('Transcript is empty.'); return; }
+    const blob=new Blob([t],{type:'text/plain;charset=utf-8'});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob); a.download=`transcript_${Date.now()}.txt`; a.click();
+  }
+
+  function saveTranscriptPdf(){
+    const text=document.getElementById('transcription').textContent.trim();
+    if(!text){ alert("Transcript is empty."); return; }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const margin=10;
+    const pageWidth = doc.internal.pageSize.getWidth()-margin*2;
+    const wrapped = doc.splitTextToSize(text,pageWidth);
+    doc.text(wrapped,margin,20);
+    doc.save(`transcript_${Date.now()}.pdf`);
+  }
+
+  /* -------------------------
+     Wire up All UI
+     ------------------------- */
+  document.addEventListener('DOMContentLoaded', () => {
+    // Q&A wiring
+    document.getElementById('askBtn').addEventListener('click', () => askAssistant(false));
+    document.getElementById('askWithContextBtn').addEventListener('click', () => askAssistant(true));
+
+    // References wiring
+    document.getElementById('searchRefsBtn').addEventListener('click', (e) => {
+      e.preventDefault();
+      searchReferences();
+    });
+
+    const inputEl = document.getElementById('qaPrompt');
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        askAssistant(false);
+      }
+    });
+
+    // Notes
+    document.getElementById('saveNotesBtn').addEventListener('click', saveNotes);
+
+    // Transcript
+    document.getElementById('startBtn').addEventListener('click', startRecording);
+    document.getElementById('stopBtn').addEventListener('click', stopRecording);
+    document.getElementById('clearBtn').addEventListener('click', ()=> document.getElementById('transcription').textContent="");
+    document.getElementById('saveTxtBtn').addEventListener('click', saveTranscriptTxt);
+    document.getElementById('savePdfBtn').addEventListener('click', saveTranscriptPdf);
+
+    // Speech recognition availability
+    if (!supportsSpeechRecognition()) {
+      document.getElementById('status').textContent = 'speech recognition not available';
+      document.getElementById('startBtn').title = 'Not available in this browser';
+    } else {
+      document.getElementById('status').textContent = 'idle';
+    }
+  });
+</script>
+
+</body>
+</html>
